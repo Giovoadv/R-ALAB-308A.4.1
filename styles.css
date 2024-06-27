@@ -35,6 +35,13 @@ body {
   top: 7px;
   right: 12px;
 }
+.favourite-button-active {
+  color: red;
+  width: 36px;
+  height: 36px;
+  top: 7px;
+  right: 12px;
+}
 
 .carousel-inner {
   padding: 1em;

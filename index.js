@@ -25,11 +25,12 @@ const API_KEY =
 axios
   .get(`https://api.thecatapi.com/v1/breeds`)
   .then((res) => {
+    console.log(res.data);
     for (const breeds of res.data) {
       //   console.log(breeds);
       initialLoad(breeds);
     }
-    console.log(res.data);
+    // console.log(res.data);
   })
   .catch((err) => {
     console.log(err);
@@ -38,7 +39,6 @@ axios
 const initialLoad = async (breeds) => {
   const breedsName = breeds.name;
   const breedsId = breeds.id;
-  console.log(breedsName);
 
   const breedList = document.createElement("option");
   breedList.setAttribute("value", `${breedsId}`);
@@ -46,8 +46,6 @@ const initialLoad = async (breeds) => {
 
   breedSelect.appendChild(breedList);
 };
-
-initialLoad();
 
 /**
  * 2. Create an event handler for breedSelect that does the following:
@@ -63,6 +61,64 @@ initialLoad();
  * - Each new selection should clear, re-populate, and restart the Carousel.
  * - Add a call to this function to the end of your initialLoad function above to create the initial carousel.
  */
+const handleBreedSelect = async (e) => {
+  e.stopImmediatePropagation();
+  const breedId = breedSelect.value;
+  console.log(breedSelect.value);
+
+  axios
+    .get(
+      `https://api.thecatapi.com/v1/images/search?limit=10&breed_ids=${breedId}&api_key=${API_KEY}`,
+      {
+        onDownloadProgress: (progressEvent) => {
+          updateProgress(progressEvent);
+        },
+      }
+    )
+    .then((res) => {
+      for (const breedInfo of res.data) {
+        console.log(breedInfo);
+        const catsImg = breedInfo.url;
+        const catsId = breedInfo.id;
+        const carouselItem = Carousel.createCarouselItem(
+          catsImg,
+          "cat",
+          catsId
+        );
+        Carousel.appendCarousel(carouselItem);
+        Carousel.start();
+      }
+
+      const infoDump = document.getElementById("infoDump");
+      const breedInfo = document.createElement("div");
+      breedInfo.setAttribute("class", "breed-info");
+      breedInfo.innerHTML = `
+      <h2>${res.data[0].breeds[0].name}</h2>
+      <p>Origin: ${res.data[0].breeds[0].origin}</p>
+      <p>${res.data[0].breeds[0].description}</p>
+      <p>Life Span: ${res.data[0].breeds[0].life_span}</p>
+
+      <h3>Temperament</h3>
+      <p>${res.data[0].breeds[0].temperament}</p>`;
+
+      infoDump.appendChild(breedInfo);
+    })
+    .catch((err) => {
+      console.log(err);
+    });
+
+  Carousel.clear();
+  updateInfo();
+};
+
+const updateInfo = () => {
+  const infoDump = document.getElementById("infoDump");
+  while (infoDump.firstChild) {
+    infoDump.removeChild(infoDump.firstChild);
+  }
+};
+
+breedSelect.addEventListener("change", handleBreedSelect, false);
 
 /**
  * 3. Fork your own sandbox, creating a new one named "JavaScript Axios Lab."
@@ -83,6 +139,38 @@ initialLoad();
  * - As an added challenge, try to do this on your own without referencing the lesson material.
  */
 
+axios.interceptors.request.use(
+  function (config) {
+    const date = new Date().toLocaleString();
+    const progressBarEl = document.querySelector("#progressBar");
+    progressBarEl.style.width = "0%";
+    document.body.style.cursor = "progress";
+
+    const percentCompleted = Math.floor((config.loaded / config.total) * 100);
+
+    console.log(" Request made at", date);
+    return config;
+  },
+  function (error) {
+    console.log(error);
+    return error;
+  }
+);
+
+axios.interceptors.response.use(
+  function (response) {
+    // Do something with response data
+    const date = new Date().toLocaleString();
+    console.log("Response Time at", date);
+
+    return response;
+  },
+  function (error) {
+    // Do something with response error
+    return Promise.reject(error);
+  }
+);
+
 /**
  * 6. Next, we'll create a progress bar to indicate the request is in progress.
  * - The progressBar element has already been created for you.
@@ -99,11 +187,20 @@ initialLoad();
  *   with for future projects.
  */
 
+const updateProgress = (progressEvent) => {
+  console.log("progress event ", progressEvent);
+  const progressBarEl = document.querySelector("#progressBar");
+  progressBarEl.style.width = `${Math.floor(
+    (progressEvent.loaded / progressEvent.total) * 100
+  )}%`;
+};
+
 /**
  * 7. As a final element of progress indication, add the following to your axios interceptors:
  * - In your request interceptor, set the body element's cursor style to "progress."
  * - In your response interceptor, remove the progress cursor style from the body element.
  */
+
 /**
  * 8. To practice posting data, we'll create a system to "favourite" certain images.
  * - The skeleton of this function has already been created for you.
@@ -116,7 +213,57 @@ initialLoad();
  * - You can call this function by clicking on the heart at the top right of any image.
  */
 export async function favourite(imgId) {
-  // your code here
+  try {
+    const favourite = document.querySelector(`#button_${imgId}`);
+    if (favourite.classList.contains("favourite-button-active")) {
+      const res = await axios.get(
+        `https://api.thecatapi.com/v1/favourites/?image_id=${imgId}`,
+        {
+          headers: {
+            "Content-Type": "application/json",
+            "x-api-key": API_KEY,
+          },
+        }
+      );
+
+      if (res.data.length > 0) {
+        const favoriteId = res.data[0].id;
+        await axios.delete(
+          `https://api.thecatapi.com/v1/favourites/${favoriteId}`,
+          {
+            headers: {
+              "Content-Type": "application/json",
+              "x-api-key": API_KEY,
+            },
+          }
+        );
+      }
+      console.log(res.data[0].id);
+
+      console.log("Unfavourited");
+      // remove favorite
+      favourite.classList.remove("favourite-button-active");
+    } else {
+      // add favorite
+      const res = await axios.post(
+        `https://api.thecatapi.com/v1/favourites`,
+        { image_id: imgId },
+        {
+          headers: {
+            "Content-Type": "application/json",
+            "x-api-key": API_KEY,
+          },
+        }
+      );
+
+      if (res.status === 200) {
+        favourite.classList.add("favourite-button-active");
+        console.log("Favourited", res);
+      }
+    }
+  } catch (error) {
+    console.error("Error:", error);
+  }
 }
 
 /**
@@ -128,6 +275,33 @@ export async function favourite(imgId) {
  *    If that isn't in its own function, maybe it should be so you don't have to
  *    repeat yourself in this section.
  */
+
+const getFavourites = async () => {
+  try {
+    const res = await axios.get(`https://api.thecatapi.com/v1/favourites`, {
+      headers: {
+        "Content-Type": "application/json",
+        "x-api-key": API_KEY,
+      },
+    });
+
+    Carousel.clear();
+
+    for (const fav of res.data) {
+      const carouselItem = Carousel.createCarouselItem(
+        fav.image.url,
+        "cat",
+        fav.image.id
+      );
+      Carousel.appendCarousel(carouselItem);
+      Carousel.start();
+    }
+  } catch (error) {
+    console.error("Error:", error);
+  }
+};
+
+getFavouritesBtn.addEventListener("click", getFavourites);
 
 /**
  * 10. Test your site, thoroughly!
