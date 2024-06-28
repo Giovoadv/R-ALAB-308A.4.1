@@ -22,15 +22,13 @@ const API_KEY =
  *  - Each option should display text equal to the name of the breed.
  * This function should execute immediately.
  */
+
 axios
   .get(`https://api.thecatapi.com/v1/breeds`)
   .then((res) => {
-    console.log(res.data);
     for (const breeds of res.data) {
-      //   console.log(breeds);
       initialLoad(breeds);
     }
-    // console.log(res.data);
   })
   .catch((err) => {
     console.log(err);
@@ -76,7 +74,9 @@ const handleBreedSelect = async (e) => {
       }
     )
     .then((res) => {
+      console.log(res.data);
       for (const breedInfo of res.data) {
+        // console.log(res.data);
         console.log(breedInfo);
         const catsImg = breedInfo.url;
         const catsId = breedInfo.id;
@@ -88,20 +88,27 @@ const handleBreedSelect = async (e) => {
         Carousel.appendCarousel(carouselItem);
         Carousel.start();
       }
+      if (res.data.length <= 0) {
+        const breedEmpty = document.createElement("div");
+        breedEmpty.innerHTML = `<h1> No Data available at this time </h1>
+        `;
 
-      const infoDump = document.getElementById("infoDump");
-      const breedInfo = document.createElement("div");
-      breedInfo.setAttribute("class", "breed-info");
-      breedInfo.innerHTML = `
-      <h2>${res.data[0].breeds[0].name}</h2>
-      <p>Origin: ${res.data[0].breeds[0].origin}</p>
-      <p>${res.data[0].breeds[0].description}</p>
-      <p>Life Span: ${res.data[0].breeds[0].life_span}</p>
+        infoDump.appendChild(breedEmpty);
+      } else {
+        const infoDump = document.getElementById("infoDump");
+        const breedInfo = document.createElement("div");
+        breedInfo.setAttribute("class", "breed-info");
+        breedInfo.innerHTML = `
+          <h2>${res.data[0].breeds[0].name}</h2>
+          <p>Origin: ${res.data[0].breeds[0].origin}</p>
+          <p>${res.data[0].breeds[0].description}</p>
+          <p>Life Span: ${res.data[0].breeds[0].life_span}</p>
+    
+          <h3>Temperament</h3>
+          <p>${res.data[0].breeds[0].temperament}</p>`;
 
-      <h3>Temperament</h3>
-      <p>${res.data[0].breeds[0].temperament}</p>`;
-
-      infoDump.appendChild(breedInfo);
+        infoDump.appendChild(breedInfo);
+      }
     })
     .catch((err) => {
       console.log(err);
@@ -161,6 +168,7 @@ axios.interceptors.response.use(
   function (response) {
     // Do something with response data
     const date = new Date().toLocaleString();
+    document.body.style.cursor = "default";
     console.log("Response Time at", date);
 
     return response;
@@ -241,10 +249,9 @@ export async function favourite(imgId) {
       console.log(res.data[0].id);
 
       console.log("Unfavourited");
-      // remove favorite
+
       favourite.classList.remove("favourite-button-active");
     } else {
-      // add favorite
       const res = await axios.post(
         `https://api.thecatapi.com/v1/favourites`,
         { image_id: imgId },
@@ -286,6 +293,7 @@ const getFavourites = async () => {
     });
 
     Carousel.clear();
+    updateInfo();
 
     for (const fav of res.data) {
       const carouselItem = Carousel.createCarouselItem(
